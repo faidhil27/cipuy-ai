@@ -7,7 +7,7 @@ import os
 import sqlite3
 import uuid
 import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,15 +28,23 @@ if DATABASE_TYPE == "supabase" and SUPABASE_URL and SUPABASE_KEY:
         supabase_client = None
         DATABASE_TYPE = "sqlite"
 
-SQLITE_PATH = os.path.join(os.path.dirname(__file__), "chats.db")
+# Di lingkungan serverless Vercel / AWS Lambda, filesystem adalah read-only kecuali /tmp
+IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+if IS_SERVERLESS:
+    SQLITE_PATH = "/tmp/chats.db"
+else:
+    SQLITE_PATH = os.path.join(os.path.dirname(__file__), "chats.db")
 
 
 def get_sqlite_conn() -> sqlite3.Connection:
-    """Membuka koneksi SQLite dengan mode WAL (Write-Ahead Logging) untuk kecepatan maksimal."""
+    """Membuka koneksi SQLite dengan mode WAL (Write-Ahead Logging) atau fallback aman di serverless."""
     conn = sqlite3.connect(SQLITE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
+    try:
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+    except Exception:
+        pass
     return conn
 
 
@@ -544,7 +552,7 @@ def get_storage_stats() -> Dict[str, Any]:
 # USER AUTHENTICATION & MANAGEMENT FUNCTIONS
 # ==========================================
 
-def authenticate_user(username: str, password: str) -> tuple[bool, Any]:
+def authenticate_user(username: str, password: str) -> Tuple[bool, Any]:
     """
     Memvalidasi kredensial pengguna.
     Mengembalikan (True, user_dict) jika berhasil dan akun aktif.
@@ -626,7 +634,7 @@ def get_all_users() -> List[Dict[str, Any]]:
     return users_list
 
 
-def create_user(username: str, password: str, role: str = "user") -> tuple[bool, str]:
+def create_user(username: str, password: str, role: str = "user") -> Tuple[bool, str]:
     """Membuat pengguna baru oleh Admin."""
     username = (username or "").strip()
     password = (password or "").strip()
@@ -677,7 +685,7 @@ def create_user(username: str, password: str, role: str = "user") -> tuple[bool,
     return True, f"Pengguna '{username}' berhasil ditambahkan."
 
 
-def toggle_user_status(username: str, new_status: str, current_admin: str) -> tuple[bool, str]:
+def toggle_user_status(username: str, new_status: str, current_admin: str) -> Tuple[bool, str]:
     """Mengubah status user (active / inactive). Admin utama tidak bisa dinonaktifkan."""
     username = (username or "").strip()
     new_status = new_status.strip().lower()
@@ -710,7 +718,7 @@ def toggle_user_status(username: str, new_status: str, current_admin: str) -> tu
     return True, f"Pengguna '{username}' berhasil {status_text}."
 
 
-def delete_user(username: str, current_admin: str) -> tuple[bool, str]:
+def delete_user(username: str, current_admin: str) -> Tuple[bool, str]:
     """Menghapus akun pengguna oleh Admin. Admin utama tidak bisa dihapus."""
     username = (username or "").strip()
     if username.lower() == "admin" or username.lower() == current_admin.lower():
