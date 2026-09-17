@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
 
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -95,7 +95,7 @@ async def stream_gemini_response(
     }
 
     models_to_try = [target_model]
-    for alt in ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3-flash-preview"]:
+    for alt in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"]:
         if alt not in models_to_try:
             models_to_try.append(alt)
 

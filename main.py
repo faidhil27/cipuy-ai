@@ -52,7 +52,7 @@ ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "admin123")
 class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     prompt: str
-    model: Optional[str] = "gemini-1.5-pro"
+    model: Optional[str] = "gemini-3.6-flash"
 
 
 class CreateSessionRequest(BaseModel):
