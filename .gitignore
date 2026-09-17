@@ -1,0 +1,28 @@
+# Environment Variables & Secrets (JANGAN DI-UPLOAD KE GITHUB DEMI KEAMANAN)
+.env
+.env.local
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Local SQLite Database Files
+*.db
+*.db-wal
+*.db-shm
+
+# Virtual Environment (jika ada)
+venv/
+env/
+.venv/
+
+# Sistem Operasi
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Vercel Cache
+.vercel/
+
