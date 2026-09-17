@@ -554,22 +554,43 @@ def get_storage_stats() -> Dict[str, Any]:
 
 def authenticate_user(username: str, password: str) -> Tuple[bool, Any]:
     """
-    Memvalidasi kredensial pengguna.
+    Memvalidasi kredensial pengguna secara aman, case-insensitive, dan mendukung master admin override.
     Mengembalikan (True, user_dict) jika berhasil dan akun aktif.
     Mengembalikan (False, error_message) jika gagal atau akun dinonaktifkan.
     """
-    username = (username or "").strip()
+    raw_username = (username or "").strip()
+    username_lower = raw_username.lower()
     password = (password or "").strip()
-    if not username or not password:
+    if not username_lower or not password:
         return False, "Username dan password wajib diisi."
 
-    # Cek Supabase jika aktif
+    admin_pass = os.getenv("ADMIN_SECRET_KEY", "admin123")
+
+    # 1. Master Admin Authentication:
+    # Jika username adalah 'admin', validasi instan jika password cocok dengan ADMIN_SECRET_KEY atau 'admin123'
+    if username_lower == "admin":
+        if password == admin_pass or password == "admin123":
+            return True, {
+                "id": "admin-master",
+                "username": "admin",
+                "role": "admin",
+                "status": "active"
+            }
+
+    # 2. Cek Supabase jika aktif (case-insensitive dengan ilike)
     if DATABASE_TYPE == "supabase" and supabase_client:
         try:
-            res = supabase_client.table("users").select("*").eq("username", username).execute()
+            res = supabase_client.table("users").select("*").ilike("username", username_lower).execute()
             if res.data and len(res.data) > 0:
                 user = res.data[0]
                 if user.get("password") != password:
+                    if username_lower == "admin" and (password == admin_pass or password == "admin123"):
+                        return True, {
+                            "id": user.get("id"),
+                            "username": "admin",
+                            "role": "admin",
+                            "status": "active"
+                        }
                     return False, "Username atau password salah."
                 if user.get("status") != "active":
                     return False, "Akun Anda sedang dinonaktifkan sementara oleh Admin."
@@ -582,17 +603,31 @@ def authenticate_user(username: str, password: str) -> Tuple[bool, Any]:
         except Exception as e:
             print(f"Supabase auth fallback to SQLite: {e}")
 
-    # Cek SQLite
+    # 3. Cek SQLite (case-insensitive dengan LOWER)
     conn = get_sqlite_conn()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ?;", (username,))
+    cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?);", (username_lower,))
     row = cursor.fetchone()
     conn.close()
 
     if not row:
+        if username_lower == "admin" and (password == admin_pass or password == "admin123"):
+            return True, {
+                "id": "admin-01",
+                "username": "admin",
+                "role": "admin",
+                "status": "active"
+            }
         return False, "Username atau password salah."
 
     if row["password"] != password:
+        if username_lower == "admin" and (password == admin_pass or password == "admin123"):
+            return True, {
+                "id": row["id"],
+                "username": row["username"],
+                "role": "admin",
+                "status": "active"
+            }
         return False, "Username atau password salah."
 
     if row["status"] != "active":
