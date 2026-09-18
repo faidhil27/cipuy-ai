@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -23,7 +24,16 @@ load_dotenv()
 app = FastAPI(
     title="Cipuy Pro - New Era New AI",
     description="Web AI Pribadi - New Era New AI + Cloud Database & Admin Storage Manager",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Setup direktori static dan templates
@@ -97,6 +107,7 @@ def verify_admin(secret_key: Optional[str] = None):
 
 
 @app.post("/api/auth/login")
+@app.post("/auth/login")
 async def login_route(body: LoginRequest):
     """Autentikasi login pengguna dan admin di awal."""
     success, res = db.authenticate_user(body.username, body.password)
@@ -111,6 +122,7 @@ async def login_route(body: LoginRequest):
 
 
 @app.post("/api/admin/verify")
+@app.post("/admin/verify")
 async def verify_admin_route(body: AdminVerifyRequest):
     """Memverifikasi otentikasi login pemilik/admin."""
     verify_admin(body.secret_key)
@@ -118,6 +130,7 @@ async def verify_admin_route(body: AdminVerifyRequest):
 
 
 @app.get("/api/admin/users")
+@app.get("/admin/users")
 async def get_admin_users(secret_key: Optional[str] = None):
     """Mendapatkan daftar semua akun pengguna terdaftar."""
     verify_admin(secret_key)
@@ -126,6 +139,7 @@ async def get_admin_users(secret_key: Optional[str] = None):
 
 
 @app.post("/api/admin/users")
+@app.post("/admin/users")
 async def add_new_user(body: CreateUserRequest, secret_key: Optional[str] = None):
     """Admin membuat akun pengguna baru."""
     verify_admin(secret_key or body.secret_key)
@@ -136,6 +150,7 @@ async def add_new_user(body: CreateUserRequest, secret_key: Optional[str] = None
 
 
 @app.patch("/api/admin/users/{username}/status")
+@app.patch("/admin/users/{username}/status")
 async def change_user_status(username: str, body: ToggleStatusRequest, secret_key: Optional[str] = None):
     """Admin mengaktifkan atau menonaktifkan akun user sementara."""
     verify_admin(secret_key or body.secret_key)
@@ -146,6 +161,7 @@ async def change_user_status(username: str, body: ToggleStatusRequest, secret_ke
 
 
 @app.delete("/api/admin/users/{username}")
+@app.delete("/admin/users/{username}")
 async def remove_user(username: str, secret_key: Optional[str] = None):
     """Admin menghapus akun user secara permanen."""
     verify_admin(secret_key)
@@ -162,7 +178,6 @@ async def remove_user(username: str, secret_key: Optional[str] = None):
 @app.get("/", response_class=HTMLResponse)
 @app.get("/api", response_class=HTMLResponse)
 @app.get("/api/", response_class=HTMLResponse)
-@app.get("/api/index.py", response_class=HTMLResponse)
 async def home_page(request: Request):
     """Menampilkan antarmuka utama kloning Google Gemini Pro."""
     return templates.TemplateResponse(
@@ -188,6 +203,7 @@ async def test_white_page(request: Request):
 # ==========================================
 
 @app.get("/api/sessions")
+@app.get("/sessions")
 async def list_sessions():
     """Mengambil daftar riwayat sesi untuk sidebar."""
     sessions = db.get_sessions()
@@ -195,6 +211,7 @@ async def list_sessions():
 
 
 @app.post("/api/sessions")
+@app.post("/sessions")
 async def create_new_session(req: CreateSessionRequest):
     """Membuat sesi chat baru."""
     session_id = str(uuid.uuid4())
@@ -203,6 +220,7 @@ async def create_new_session(req: CreateSessionRequest):
 
 
 @app.get("/api/sessions/{session_id}")
+@app.get("/sessions/{session_id}")
 async def get_session_details(session_id: str):
     """Mengambil seluruh riwayat pesan dari sesi tertentu."""
     messages = db.get_session_messages(session_id)
@@ -210,6 +228,7 @@ async def get_session_details(session_id: str):
 
 
 @app.delete("/api/sessions/{session_id}")
+@app.delete("/sessions/{session_id}")
 async def delete_session(session_id: str):
     """Menghapus sebuah sesi percakapan."""
     success = db.delete_session(session_id)
@@ -217,6 +236,7 @@ async def delete_session(session_id: str):
 
 
 @app.post("/api/chat/stream")
+@app.post("/chat/stream")
 async def chat_stream(request: Request, body: ChatRequest):
     """
     Endpoint Streaming Utama:
@@ -306,6 +326,7 @@ async def chat_stream(request: Request, body: ChatRequest):
 # ==========================================
 
 @app.get("/api/admin/stats")
+@app.get("/admin/stats")
 async def get_admin_stats(secret_key: Optional[str] = None):
     """Mendapatkan ringkasan kapasitas storage dan statistik chat."""
     verify_admin(secret_key)
@@ -314,6 +335,7 @@ async def get_admin_stats(secret_key: Optional[str] = None):
 
 
 @app.get("/api/admin/logs")
+@app.get("/admin/logs")
 async def get_admin_logs(
     secret_key: Optional[str] = None,
     query: str = "",
@@ -327,6 +349,7 @@ async def get_admin_logs(
 
 
 @app.delete("/api/admin/logs/{message_id}")
+@app.delete("/admin/logs/{message_id}")
 async def delete_log_message(message_id: str, secret_key: Optional[str] = None):
     """Menghapus satu pesan tertentu dari database."""
     verify_admin(secret_key)
@@ -335,6 +358,7 @@ async def delete_log_message(message_id: str, secret_key: Optional[str] = None):
 
 
 @app.post("/api/admin/clean")
+@app.post("/admin/clean")
 async def clean_database_logs(body: AdminCleanRequest):
     """Membersihkan database untuk mengosongkan storage."""
     verify_admin(body.secret_key)
@@ -350,7 +374,8 @@ async def clean_database_logs(body: AdminCleanRequest):
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 async def catch_all_routes(request: Request, full_path: str):
     """Fallback router untuk SPA dan routing Vercel."""
-    if full_path.startswith("api/") or full_path.startswith("static/"):
+    api_prefixes = ("api/", "auth/", "chat/", "sessions", "admin/", "static/")
+    if any(full_path.startswith(prefix) for prefix in api_prefixes):
         raise HTTPException(status_code=404, detail="Not Found")
     return templates.TemplateResponse(
         request=request,
